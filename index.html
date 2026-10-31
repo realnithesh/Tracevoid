@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TRACEVOID // Forensic Workstation</title>
+
+<style>
+:root {
+  --bg: #07090e;
+  --panel: #0d121c;
+  --panel2: #101826;
+  --line: #1c2a3d;
+  --cyan: #39f3ff;
+  --pink: #ff2bd6;
+  --amber: #ffb020;
+  --text: #d7e6f5;
+  --muted: #7f93ab;
+  --danger: #ff5d73;
+  --green: #4dffb8;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(900px 400px at 10% 0%, #39f3ff12, transparent),
+    radial-gradient(900px 400px at 100% 0%, #ff2bd612, transparent),
+    var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 15px;
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--line);
+  background: #07090eea;
+}
+
+.brand { display: flex; align-items: center; gap: 12px; }
+
+.logo {
+  width: 38px; height: 38px;
+  border: 1px solid var(--cyan);
+  display: grid; place-items: center;
+  color: var(--cyan); font-weight: bold;
+  box-shadow: 0 0 15px #39f3ff44;
+}
+
+.brand h1 { font-size: 16px; letter-spacing: 5px; margin: 0; }
+.brand p  { color: var(--muted); font-size: 10px; letter-spacing: 2px; margin: 4px 0 0; }
+.connection { color: var(--green); font-size: 11px; letter-spacing: 1px; }
+
+.layout {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  min-height: calc(100vh - 71px);
+}
+
+.sidebar { padding: 20px; background: var(--panel); border-right: 1px solid var(--line); }
+.workspace { padding: 20px; display: grid; gap: 16px; align-content: start; min-width: 0; }
+.panel { background: var(--panel2); border: 1px solid var(--line); padding: 16px; min-width: 0; }
+
+h2 { color: var(--cyan); font-size: 12px; letter-spacing: 2px; margin: 0 0 14px; }
+
+textarea {
+  width: 100%; min-height: 190px; resize: vertical;
+  padding: 12px; background: #080e16;
+  border: 1px solid var(--line); color: var(--text);
+  font: inherit; line-height: 1.5; outline: none;
+}
+textarea:focus { border-color: var(--cyan); }
+
+button {
+  padding: 11px 15px; cursor: pointer;
+  border: 1px solid var(--line); background: #0a1018;
+  color: var(--text); font-size: 11px;
+  letter-spacing: 1px; text-transform: uppercase;
+}
+button.primary { background: #08242a; color: var(--cyan); border-color: var(--cyan); }
+button:hover { filter: brightness(1.3); }
+button:disabled { opacity: .5; cursor: wait; }
+
+.actions { display: flex; gap: 8px; margin-top: 12px; }
+
+.status { color: var(--muted); font-size: 12px; margin-top: 13px; min-height: 20px; }
+.status.error { color: var(--danger); }
+.status.success { color: var(--green); }
+
+.meta { display: flex; gap: 25px; flex-wrap: wrap; color: var(--muted); font-size: 12px; }
+.meta b { color: var(--amber); }
+
+.graph { display: flex; align-items: center; gap: 10px; overflow-x: auto; padding: 12px 0; }
+.node {
+  min-width: 125px; padding: 13px 8px; text-align: center;
+  font-size: 10px; letter-spacing: 1px;
+  border: 1px solid var(--cyan); background: #39f3ff09;
+}
+.node.active { box-shadow: 0 0 18px #39f3ff55; }
+.arrow { color: var(--pink); }
+
+.timeline { display: grid; gap: 10px; }
+.event {
+  padding: 12px; border-left: 2px solid var(--pink);
+  background: #ff2bd608; overflow-wrap: anywhere;
+}
+.event a { color: var(--cyan); font-size: 12px; }
+.event p { font-size: 13px; line-height: 1.5; }
+
+.reason {
+  white-space: pre-wrap; overflow-wrap: anywhere;
+  font: 13px/1.6 Consolas, monospace;
+  color: #cfe8ff; min-height: 150px;
+}
+
+.history { display: grid; gap: 8px; margin-top: 12px; }
+.hist {
+  padding: 10px; border: 1px solid var(--line);
+  cursor: pointer; font-size: 12px; overflow-wrap: anywhere;
+}
+.hist:hover { border-color: var(--pink); }
+.hist b { color: var(--pink); }
+
+.empty { color: var(--muted); font-size: 12px; }
+
+@media(max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { border-right: 0; border-bottom: 1px solid var(--line); }
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <div class="brand">
+    <div class="logo">TV</div>
+    <div>
+      <h1>TRACEVOID</h1>
+      <p>LOCAL OFFLINE CLAIM ANALYSIS</p>
+    </div>
+  </div>
+  <div class="connection" id="connection">● CHECKING SERVER</div>
+</header>
+
+<main class="layout">
+
+  <aside class="sidebar">
+
+    <section class="panel">
+      <h2>01 / CLAIM &amp; SOURCE INPUT</h2>
+
+      <textarea
+        id="claim"
+        placeholder="Paste a claim and any source material you want the local model to analyze. It cannot browse the web."
+      ></textarea>
+
+      <div class="actions">
+        <button class="primary" id="runBtn">Investigate</button>
+        <button id="clearBtn">Clear</button>
+      </div>
+
+      <div class="status" id="status">Awaiting investigation...</div>
+    </section>
+
+    <section class="panel" style="margin-top:18px">
+      <h2>02 / CASE HISTORY</h2>
+      <div class="history" id="history">
+        <div class="empty">No previous cases.</div>
+      </div>
+    </section>
+
+  </aside>
+
+  <section class="workspace">
+
+    <section class="panel">
+      <h2>INVESTIGATION METADATA</h2>
+      <div class="meta">
+        <span>CASE: <b id="caseNo">TRV-------</b></span>
+        <span>MODEL: <b id="model">Waiting</b></span>
+        <span>TIME: <b id="stamp">--</b></span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>03 / INFORMATION FLOW</h2>
+      <div class="graph">
+        <div class="node" id="n1">CLAIM INPUT</div>
+        <div class="arrow">→</div>
+        <div class="node" id="n2">PROVIDED MATERIAL</div>
+        <div class="arrow">→</div>
+        <div class="node" id="n3">LOCAL OLLAMA MODEL</div>
+        <div class="arrow">→</div>
+        <div class="node" id="n4">FORENSIC REPORT</div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>04 / SOURCE NOTES</h2>
+      <div class="timeline" id="timeline">
+        <div class="empty">Local analysis does not browse the web. Include sources in your input for analysis.</div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>05 / ANALYSIS REPORT</h2>
+      <div class="reason" id="reason">
+        Local model analysis will appear here. Results are not independently verified.
+      </div>
+    </section>
+
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+
+function setStatus(message, type = "") {
+  const el = $("status");
+  el.textContent = message;
+  el.className = "status " + type;
+}
+
+function activateNodes() {
+  document.querySelectorAll(".node").forEach(n => n.classList.add("active"));
+}
+
+function resetNodes() {
+  document.querySelectorAll(".node").forEach(n => n.classList.remove("active"));
+}
+
+function safeUrl(value) {
+  try {
+    const url = new URL(value);
+    if (url.protocol === "https:" || url.protocol === "http:") return url.href;
+  } catch {}
+  return null;
+}
+
+function renderTimeline(items = []) {
+  const root = $("timeline");
+  root.replaceChildren();
+
+  if (!items.length) {
+    root.textContent = "No external sources: the local model cannot browse the web. Include source text or URLs in your input; verify claims independently.";
+    return;
+  }
+
+  items.forEach(item => {
+    const article = document.createElement("article");
+    article.className = "event";
+
+    const title = document.createElement("strong");
+    title.textContent = item.title || "Source";
+
+    const snippet = document.createElement("p");
+    snippet.textContent = item.snippet || "";
+
+    article.append(title, snippet);
+
+    const href = safeUrl(item.url);
+    if (href) {
+      const link = document.createElement("a");
+      link.href = href;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.textContent = href;
+      article.append(link);
+    }
+
+    root.append(article);
+  });
+}
+
+function renderCase(data) {
+  $("caseNo").textContent = data.case_number || "TRV-------";
+  $("model").textContent  = data.model || "Local model";
+  $("stamp").textContent  = data.created_at || "--";
+  $("reason").textContent = data.reasoning_log || "";
+
+  renderTimeline(data.timeline || []);
+  activateNodes();
+}
+
+async function loadHistory() {
+  const response = await fetch("/api/cases");
+  if (!response.ok) throw new Error("Could not load case history.");
+
+  const cases = await response.json();
+  const root = $("history");
+  root.replaceChildren();
+
+  if (!cases.length) {
+    root.textContent = "No previous cases.";
+    return;
+  }
+
+  cases.forEach(item => {
+    const card = document.createElement("div");
+    card.className = "hist";
+
+    const title = document.createElement("b");
+    title.textContent = item.case_number;
+
+    const description = document.createElement("div");
+    description.textContent = item.input_text.slice(0, 120);
+
+    const date = document.createElement("div");
+    date.textContent = item.created_at;
+
+    card.append(title, description, date);
+
+    card.addEventListener("click", async () => {
+      try {
+        const res = await fetch("/api/cases/" + encodeURIComponent(item.case_number));
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Case not found.");
+        renderCase(data);
+        $("claim").value = data.input_text || "";
+        setStatus("Previous case loaded.", "success");
+      } catch (error) {
+        setStatus(error.message, "error");
+      }
+    });
+
+    root.append(card);
+  });
+}
+
+$("runBtn").addEventListener("click", async () => {
+  const claim = $("claim").value.trim();
+
+  if (claim.length < 8) {
+    setStatus("Please enter a longer claim.", "error");
+    return;
+  }
+
+  const button = $("runBtn");
+  button.disabled = true;
+
+  resetNodes();
+  setStatus("Sending claim to the local Ollama model...");
+  $("reason").textContent = "Analyzing with the local model...";
+  $("timeline").textContent = "No web search is performed by the local model.";
+
+  try {
+    const response = await fetch("/api/investigate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ claim }),
+    });
+
+    // Parse JSON safely — server might have returned HTML.
+    let data = null;
+    try { data = await response.json(); } catch {}
+
+    if (!response.ok || !data || !data.ok) {
+      const msg =
+        (data && data.error) ||
+        ("Server responded " + response.status + " " + response.statusText);
+      throw new Error(msg);
+    }
+
+    renderCase(data);
+    await loadHistory();
+
+    setStatus("Investigation completed. Case " + data.case_number, "success");
+
+  } catch (error) {
+    setStatus(error.message, "error");
+    $("reason").textContent =
+      "ERROR:\n" + error.message +
+      "\n\nIf this says 'Failed to fetch', the server is not running at " +
+      window.location.origin + ".";
+  } finally {
+    button.disabled = false;
+  }
+});
+
+$("clearBtn").addEventListener("click", () => {
+  $("claim").value = "";
+  $("reason").textContent = "Local model analysis will appear here. Results are not independently verified.";
+  $("timeline").textContent = "Local analysis does not browse the web. Include sources in your input for analysis.";
+  $("caseNo").textContent = "TRV-------";
+  $("model").textContent = "Waiting";
+  $("stamp").textContent = "--";
+  resetNodes();
+  setStatus("Console cleared.");
+});
+
+async function checkServer() {
+  try {
+    const response = await fetch("/api/health");
+    if (!response.ok) throw new Error();
+    const data = await response.json();
+    if (!data.ollama_connected) {
+      $("connection").textContent = "● OLLAMA OFFLINE";
+    } else if (!data.model_available) {
+      $("connection").textContent = "● MODEL MISSING — ollama pull " + data.model;
+    } else {
+      $("connection").textContent = "● LOCAL MODEL ONLINE — " + data.model;
+    }
+  } catch {
+    $("connection").textContent = "● SERVER OFFLINE";
+  }
+}
+
+checkServer();
+loadHistory().catch(() => {});
+</script>
+
+</body>
+</html>
